@@ -303,12 +303,35 @@ brew audit --strict --formula local/klangtest/klangladder
 brew test local/klangtest/klangladder
 ```
 
+## CI and releases
+
+Three workflows in `.github/workflows` call each other: Release calls Package, and Package calls Build.
+
+| Workflow | Runs on | Does |
+|---|---|---|
+| `build.yml` | pull requests to any branch except `main` | `swift build`, `swift test`, `ray lint` |
+| `package.yml` | pull requests to `main` | Build, then in parallel: `bundle.sh` and upload the zipped app as the `KlangLadder-app` artifact; install, test and audit the formula from a local tap; `ray build`, which compiles the bundled app |
+| `release.yml` | every push to `main` | Determine the version (`.github/actions/determine-version`), Package with that version, create GitHub release `v<version>` with the zip, point the formula at the new tag and commit it to `main`, publish the Raycast extension |
+
+**No duplicate runs.** The triggers don't overlap: Build skips pull requests to `main`, because Package runs there and calls it. Release only runs on `main`, and calls Package.
+
+**Checking a release without publishing.** Run Release manually (`workflow_dispatch`) and leave `publish` off. It builds everything and prints what it would publish, but creates no release, commit or Store submission.
+
+**Versioning.** `bundle.sh` writes `$VERSION` into the Info.plist when it's set. The formula sets it from the tag for stable builds.
+
+**Homebrew.** The release job rewrites the formula's `url` to `tag: "v<version>"` plus `revision:`, then commits to `main` as `github-actions[bot]`. Pushes made with `GITHUB_TOKEN` don't trigger workflows, so this doesn't start another release. If `main` gets branch protection, allow the bot to push or switch to a pull request.
+
+**Raycast Store.** Before building, the job replaces the `../..` path dependency in `raycast/swift/Package.swift` with the GitHub URL at the new version (at the current commit for a dry run), because the Store builds the extension outside this repository. Publishing runs `ray publish` and needs two repository secrets:
+
+- `RAYCAST_TOKEN`: Raycast access token (`RAY_TOKEN`)
+- `RAYCAST_GITHUB_TOKEN`: GitHub token that can fork `raycast/extensions` and open pull requests (`GITHUB_ACCESS_TOKEN`)
+
+Without them the step logs a warning and skips. See #21 for what else the Store needs.
+
 ## Roadmap
 
 See the GitHub issues and DESIGN.md sections 13–14. Main open items:
 
-- Homebrew: stable version after the first tag (#1, #3)
 - Raycast extension (#2) — the extension bundles and installs the app (9.2, S1); Raycast Store acceptance (S2) and switching the path dependency to a tagged release are still open
-- GitHub releases (#3)
 - CLI mode for reads (#11)
 - URL write commands (#12)

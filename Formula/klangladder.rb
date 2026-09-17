@@ -7,6 +7,7 @@ class Klangladder < Formula
 
   def install
     # SwiftPM's own sandbox can't nest inside Homebrew's.
+    ENV["VERSION"] = version.to_s unless build.head?
     system "./bundle.sh", "--disable-sandbox"
     prefix.install "build/KlangLadder.app"
   end

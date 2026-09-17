@@ -27,21 +27,23 @@ KlangLadder reacts to system events. It does not poll, and it needs no special p
 
 ### Homebrew
 
-The formula builds KlangLadder on your machine, so it needs the Xcode Command Line Tools. It builds the latest `main` until the first release is tagged.
+The formula builds KlangLadder on your machine, so it needs the Xcode Command Line Tools. It builds the latest release. Add `--HEAD` to build the latest `main` instead.
 
 ```sh
 brew tap janthoXO/klangladder https://github.com/janthoXO/KlangLadder
-brew install --HEAD klangladder
+brew install klangladder
 brew services start klangladder
 ```
 
 `brew services start` runs KlangLadder now and at every login. Use it instead of the **Launch at login** toggle. To run it once without a service, use `open $(brew --prefix)/opt/klangladder/KlangLadder.app`.
 
-Update with `brew upgrade --fetch-HEAD klangladder`, then `brew services restart klangladder`.
+Update with `brew upgrade klangladder`, then `brew services restart klangladder`.
+
+### GitHub release
+
+Download `KlangLadder-v<version>.zip` from the [latest release](https://github.com/janthoXO/KlangLadder/releases/latest), unzip it and move `KlangLadder.app` to `~/Applications`. The app is not notarized, so Gatekeeper blocks the first launch. Allow it in **System Settings → Privacy & Security**.
 
 ### From source
-
-GitHub releases are planned.
 
 ```sh
 git clone https://github.com/janthoXO/KlangLadder.git
