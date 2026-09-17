@@ -4,9 +4,13 @@ import PackageDescription
 let package = Package(
     name: "KlangLadder",
     platforms: [.macOS(.v14)],
+    products: [
+        .library(name: "KlangLadderApp", targets: ["KlangLadderApp"]),  // used by the Raycast extension
+    ],
     targets: [
         .target(name: "KlangLadderCore"),
-        .executableTarget(name: "KlangLadder", dependencies: ["KlangLadderCore"]),
+        .target(name: "KlangLadderApp", dependencies: ["KlangLadderCore"]),
+        .executableTarget(name: "KlangLadder", dependencies: ["KlangLadderApp"]),
         .testTarget(name: "KlangLadderCoreTests", dependencies: ["KlangLadderCore"]),
     ]
 )

@@ -1,28 +1,11 @@
-import { Clipboard, Toast, closeMainWindow, getApplications, open, showToast } from "@raycast/api";
-
-const BUNDLE_ID = "dev.klangladder.KlangLadder";
-const INSTALL_COMMAND =
-  "brew tap janthoXO/klangladder https://github.com/janthoXO/KlangLadder && brew install --HEAD klangladder";
+import { Toast, closeMainWindow, showToast } from "@raycast/api";
+import { openKlangLadder } from "swift:../swift";
 
 export default async function Command() {
-  const applications = await getApplications();
-  const isInstalled = applications.some((app) => app.bundleId === BUNDLE_ID);
-
-  if (!isInstalled) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: "KlangLadder is not installed",
-      message: "Install it with Homebrew",
-      primaryAction: {
-        title: "Copy Install Command",
-        onAction: async () => {
-          await Clipboard.copy(INSTALL_COMMAND);
-        },
-      },
-    });
-    return;
+  try {
+    await openKlangLadder();
+    await closeMainWindow();
+  } catch (error) {
+    await showToast({ style: Toast.Style.Failure, title: "Couldn't open KlangLadder", message: String(error) });
   }
-
-  await closeMainWindow();
-  await open("klangladder://open");
 }
