@@ -43,7 +43,9 @@ On its first run, KlangLadder puts your current default device at the top of eac
 
 ### Raycast
 
-The extension in [`raycast/`](raycast/) adds an "Open KlangLadder" command to Raycast. It requires the app to already be installed; it does not bundle it. To load it locally:
+The extension in [`raycast/`](raycast/) adds an "Open KlangLadder" command to Raycast. It bundles the app: the first time you run the command, it installs KlangLadder into `~/Applications` and keeps it updated after that. If you already have a standalone copy (built from source, a Homebrew keg, or a manual copy in `~/Applications`), the extension uses that copy as-is instead.
+
+To load it locally (needs Xcode 16.3+):
 
 ```sh
 cd raycast && npm install && npm run dev

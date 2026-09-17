@@ -2,13 +2,7 @@
 
 A Raycast extension with one command, **Open KlangLadder**, which opens the [KlangLadder](https://github.com/janthoXO/KlangLadder) menu bar app's popover.
 
-This extension does not bundle the app. It requires KlangLadder to already be installed:
-
-```sh
-brew tap janthoXO/klangladder https://github.com/janthoXO/KlangLadder && brew install --HEAD klangladder
-```
-
-Or build it from source, see the [main README](../README.md#install). If the app isn't installed, the command shows a toast with an action to copy the install command above.
+The extension bundles the app. The first time you run the command, it installs KlangLadder into `~/Applications` and keeps it updated after that. If you already have a standalone copy (built from source, a Homebrew keg, or a manual copy in `~/Applications`), the extension leaves it alone and uses that copy instead.
 
 ## Development
 
@@ -16,3 +10,5 @@ Or build it from source, see the [main README](../README.md#install). If the app
 npm install
 npm run dev
 ```
+
+Building the Swift side needs Xcode 16.3 or later (not just the Command Line Tools) — see [`swift/`](swift/) and the [main developer guide](../README_DEV.md#raycast-extension).
