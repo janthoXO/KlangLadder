@@ -19,7 +19,7 @@ Run `.build/debug/KlangLadder` directly for quick checks. The unbundled binary h
 
 Test them with the bundled app.
 
-`bundle.sh` writes the Info.plist inline. Key values:
+`AppBundle.swift` holds the Info.plist as a string; `bundle.sh` builds the `KlangLadder` executable, then runs it with `--bundle build/KlangLadder.app`, which calls `AppBundle.assemble` to write the bundle. The Raycast installer calls the same `AppBundle.assemble` to install the app (see below). Key values:
 
 | Key | Value |
 |---|---|
@@ -37,16 +37,20 @@ Sources/
     Model.swift             Scope, LiveDevice, DeviceEntry, ScopeConfig, Config, Rules
     CoreAudio.swift         thin adapter over the Core Audio HAL
     Engine.swift            event handling, state, ConfigStore, LoginSession
-  KlangLadder/              app target
-    main.swift              AppDelegate: status item, popover, URL scheme, single instance
+  KlangLadderApp/           library target: the app, minus the entry point
+    App.swift               AppDelegate: status item, popover, URL scheme, single instance; runApp()
     PopoverView.swift       SwiftUI popover (tabs, lists, row actions)
+    AppBundle.swift         assembles and signs a KlangLadder.app around an executable
+  KlangLadder/              executable target: thin entry point
+    main.swift              `--bundle <path>` assembles the app, otherwise calls runApp()
 Tests/
   KlangLadderCoreTests/
     RulesTests.swift        switching rules and list operations
-bundle.sh                   assembles and signs the .app
+bundle.sh                   builds KlangLadder and bundles it into build/KlangLadder.app
+raycast/                    Raycast extension; bundles and installs the app (see below)
 ```
 
-The design mentions a separate `KlangLadderUI` module. The views live in the app target instead, because nothing else uses them.
+The design mentions a separate `KlangLadderUI` module. The views live in `KlangLadderApp` instead, because nothing but the app and the Raycast bridge use them. `KlangLadderApp` is a library (not the executable) so the Raycast extension's own binary can link it and run the app directly, without shelling out to a separate process.
 
 ## Architecture
 
@@ -197,10 +201,11 @@ Example:
 }
 ```
 
-## App shell (`main.swift`)
+## App shell (`App.swift`)
 
-- **Entry:** plain `NSApplication` with `.accessory` activation policy. Not the SwiftUI `App` lifecycle, because the URL scheme needs to open the popover from code.
+- **Entry:** plain `NSApplication` with `.accessory` activation policy. Not the SwiftUI `App` lifecycle, because the URL scheme needs to open the popover from code. `public func runApp() -> Never` is the entry point; `KlangLadder/main.swift` and the Raycast bridge both call it.
 - **Status item:** an `NSStatusItem` with the SF Symbol `hifispeaker.2`. It is icon only (non-goal: device name in the menu bar).
+- **Login item:** if launched with `--register-login-item`, registers via `SMAppService.mainApp` on start. The Raycast installer passes this flag on a fresh install (see below).
 - **Popover:** an `NSPopover` with `.transient` behavior.
   - Each open creates a fresh `NSHostingController`, so the manual expand/collapse state of the Disabled list resets (8.1).
   - Size is fixed at 380×460 with `sizingOptions = []`. Without this, `List` reports an unstable ideal size and the popover grows off-screen.
@@ -233,12 +238,45 @@ Not covered yet: engine-level behavior (manual changes, startup once per session
 
 Manual checks on hardware are tracked in issues #5, #6 and #7.
 
+## Raycast extension
+
+`raycast/` bundles the app (9.2, spike S1 solved). One command, **Open KlangLadder** (`raycast/src/open.ts`, `mode: "no-view"`), calls into Swift and opens the popover.
+
+### The bridge is the app
+
+`raycast/swift/` is a Swift package, `KlangLadderRaycast`, for Raycast's `extensions-swift-tools`. It depends on the root package with `.package(path: "../..")` and links `KlangLadderApp`. Because the repo folder is named `KlangLadder`, that dependency resolves as `.product(name: "KlangLadderApp", package: "KlangLadder")` — SwiftPM derives a path dependency's package identity from its folder name, so **the repo must stay checked out as a folder named `KlangLadder`** for this to build.
+
+The target uses only `RaycastTypeScriptPlugin`, not `RaycastSwiftPlugin`, because it supplies its own `main.swift` (`raycast/swift/Sources/main.swift`) instead of the generated one. That file does the same dispatch the generated main would: if `argv[1]` names an exported `@raycast` function, it runs that function; otherwise it calls `runApp()`. `ray build` compiles this into one universal binary via `xcodebuild` (`assets/compiled_raycast_swift/swift`), so the same binary is both the Raycast bridge and the app. Building it needs **Xcode 16.3 or later** (not just the Command Line Tools), per `extensions-swift-tools`.
+
+### Install and update (`Install.swift`)
+
+`@raycast func openKlangLadder()` runs on every invocation of the command:
+
+1. **Look for a standalone copy.** `NSWorkspace.urlsForApplications(withBundleIdentifier:)` finds every app with the KlangLadder bundle ID. Any copy that isn't the one this extension installed — built from source, a Homebrew keg, a manual copy in `~/Applications` without the marker below — is used as-is and never modified or replaced.
+2. **Otherwise, install or update `~/Applications/KlangLadder.app`.** It's installed when missing, and updated when the SHA-256 of the bundled binary differs from the hash recorded in the marker file `~/Library/Application Support/KlangLadder/raycast-installed`. A hash, not a version number, because codesign rewrites the installed binary so byte-for-byte comparison doesn't work. Before replacing, it terminates any running copies and polls for up to 5 seconds for them to exit.
+3. **Open it.** `NSWorkspace.open(_:withApplicationAt:configuration:)` with `klangladder://open`, launching the app if needed. On a fresh install, the launch configuration passes `--register-login-item`.
+
+### Verified by hand
+
+- `ray build` and `ray lint` pass.
+- Running the bridge with a standalone copy present opened that copy, untouched.
+- A fresh install created a signed app with no quarantine xattr, launched it, and registered and enabled the login item (S3 holds for this path).
+- The update path quit the running copy, replaced it, and relaunched.
+- A repeat run with nothing to do took 0.08 s.
+
+### Known limits
+
+- The path dependency ties the extension to the repo folder being named `KlangLadder` (above). Publishing to the Raycast Store (extensions live in the `raycast/extensions` monorepo) needs the dependency switched to `.package(url: "https://github.com/janthoXO/KlangLadder", from: <first tag>)` after the first release — see issue #3. Store acceptance itself (S2) is still open.
+- Not tested from inside the Raycast UI (`npm run dev`) — only by running the compiled bridge the way Raycast spawns it.
+- The standalone-version compatibility check from 9.2 is skipped: the only command sent is `klangladder://open`, which every version supports.
+- Uninstalling the extension does not remove the installed app.
+
 ## Roadmap
 
 See the GitHub issues and DESIGN.md sections 13–14. Main open items:
 
 - Homebrew tap (#1)
-- Raycast extension (#2)
+- Raycast extension (#2) — the extension bundles and installs the app (9.2, S1); Raycast Store acceptance (S2) and switching the path dependency to a tagged release are still open
 - GitHub releases (#3)
 - CLI mode for reads (#11)
 - URL write commands (#12)

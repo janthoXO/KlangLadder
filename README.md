@@ -25,7 +25,7 @@ KlangLadder reacts to system events. It does not poll, and it needs no special p
 
 ## Install
 
-For now, KlangLadder is installed by building it from source. A Homebrew tap, GitHub releases and a Raycast extension are planned.
+For now, KlangLadder is installed by building it from source. A Homebrew tap and GitHub releases are planned.
 
 ```sh
 git clone https://github.com/janthoXO/KlangLadder.git
@@ -40,6 +40,16 @@ The app appears as a speaker icon in the menu bar. It has no Dock icon.
 A locally built app is not quarantined, so macOS should open it without a Gatekeeper prompt.
 
 On its first run, KlangLadder puts your current default device at the top of each list. It doesn't switch your audio until you change the order.
+
+### Raycast
+
+The extension in [`raycast/`](raycast/) adds an "Open KlangLadder" command to Raycast. It bundles the app: the first time you run the command, it installs KlangLadder into `~/Applications` and keeps it updated after that. If you already have a standalone copy (built from source, a Homebrew keg, or a manual copy in `~/Applications`), the extension uses that copy as-is instead.
+
+To load it locally (needs Xcode 16.3+):
+
+```sh
+cd raycast && npm install && npm run dev
+```
 
 ## Use
 
