@@ -204,6 +204,7 @@ Example:
 
 ## App shell (`App.swift`)
 
+- **Clicks:** the status item button sends its action on left and right mouse up. Left click (or a click through the URL scheme) opens the popover, right click and control-click build an `NSMenu` with Launch at Login and Quit. The menu is attached to the status item only for that click, because a permanently attached menu would replace the button's action.
 - **Entry:** plain `NSApplication` with `.accessory` activation policy. Not the SwiftUI `App` lifecycle, because the URL scheme needs to open the popover from code. `public func runApp() -> Never` is the entry point; `KlangLadder/main.swift` and the Raycast bridge both call it.
 - **Status item:** an `NSStatusItem` with the SF Symbol `hifispeaker.2`. It is icon only (non-goal: device name in the menu bar).
 - **Login item:** if launched with `--register-login-item`, registers via `SMAppService.mainApp` on start. The Raycast installer passes this flag on a fresh install (see below).
@@ -215,16 +216,25 @@ Example:
 
 ## Popover (`PopoverView.swift`)
 
+Styled after the system menu bar extras (Sound, Wi-Fi, Bluetooth): stock SwiftUI components, system shape styles instead of hand-picked colors, and no background of its own, so the popover's material shows through (`.listStyle(.plain)` plus `.scrollContentBackground(.hidden)`).
+
+The width is 320. The height follows the content: rows are exactly 28 points tall, so the view gives the `List` `rows * 28`, capped at twelve rows, and `App.swift` lets the hosting controller report that size (`sizingOptions = [.preferredContentSize]`). A `List` has no ideal height of its own, so without that explicit height the popover grew past the screen.
+
 - The segmented tab is stored in `@AppStorage("lastTab")`.
 - The priority list is a `ForEach` with `.onMove` for drag and drop. It writes through `engine.edit`.
 - The Disabled list is a `DisclosureGroup`. `isExpanded` is the user's manual toggle if set, else "the active device is disabled" (G11).
 - **`DeviceRow`**
   - Tap on a connected device: `makeActive`.
-  - Context menu and hover `…` menu share one action list.
-  - Hover trash button for disconnected devices.
+  - Each row has a device icon in a circle, picked from the transport (headphones for Bluetooth, display for HDMI, and so on). The active device's circle is filled with the accent color and its name is bold, the way the Sound menu marks the selected device.
+  - Rows are single line. Disconnected rows are dimmed, like unavailable menu items, and the tooltip names the state. Only duplicate names get a trailing caption with the transport.
+  - Hovering highlights the row with the system `.quaternary` style and reveals the `…` menu.
+  - Context menu and hover `…` menu share one action list, including Delete for disconnected devices; there's no separate trash button.
   - Tooltip shows transport, last seen and UID.
   - Duplicate names get a transport suffix (section 10).
-- The launch at login toggle uses `SMAppService.mainApp`. Errors show in the red error line.
+- The Disabled group is hidden when nothing is disabled.
+- Settings are not in the popover. They live in the status item's right-click menu (see above), which also keeps the popover's height tied to the device list.
+
+There is no committed snapshot test. To review layout changes, add a temporary test target that hosts `PopoverView` in an offscreen `NSWindow` and captures it with `CGWindowListCreateImage`; `cacheDisplay` leaves list and control text blank.
 
 ## Tests
 

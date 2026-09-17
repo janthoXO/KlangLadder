@@ -26,7 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "hifispeaker.2", accessibilityDescription: "KlangLadder")
         item.button?.target = self
-        item.button?.action = #selector(togglePopover)
+        item.button?.action = #selector(statusItemClicked)
+        item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         statusItem = item
         popover.behavior = .transient
         if CommandLine.arguments.contains("--register-login-item") {  // set by the Raycast installer (9.2)
@@ -43,17 +44,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc func togglePopover() {
-        popover.isShown ? popover.performClose(nil) : showPopover()
+    /// Left click: the device lists. Right click: settings (8.1).
+    @objc func statusItemClicked() {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            showSettingsMenu()
+        } else {
+            popover.isShown ? popover.performClose(nil) : showPopover()
+        }
+    }
+
+    private func showSettingsMenu() {
+        popover.performClose(nil)
+        let menu = NSMenu()
+        let launch = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launch.target = self
+        launch.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(launch)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit KlangLadder", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+
+        // A menu set on the status item replaces the click action, so only attach it for this click.
+        statusItem?.menu = menu
+        statusItem?.button?.performClick(nil)
+        statusItem?.menu = nil
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            engine.lastError = "Launch at login: \(error.localizedDescription)"
+            showPopover()
+        }
     }
 
     func showPopover() {
         guard !popover.isShown, let button = statusItem?.button else { return }
         // Fresh view each time, so manual expand/collapse state resets (8.1).
         let host = NSHostingController(rootView: PopoverView(engine: engine))
-        host.sizingOptions = []  // List reports no stable ideal size; let the fixed frame win
+        // PopoverView gives the list an explicit height, so its ideal size is stable.
+        host.sizingOptions = [.preferredContentSize]
         popover.contentViewController = host
-        popover.contentSize = NSSize(width: 380, height: 460)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate()
     }
