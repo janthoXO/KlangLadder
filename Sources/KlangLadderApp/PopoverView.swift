@@ -1,12 +1,13 @@
 import KlangLadderCore
-import ServiceManagement
 import SwiftUI
 
 struct PopoverView: View {
     let engine: Engine
     @AppStorage("lastTab") private var scope: Scope = .output
     @State private var disabledExpanded: [Scope: Bool] = [:]
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+
+    private static let rowHeight: CGFloat = 28
+    private static let maxListHeight: CGFloat = 12 * rowHeight
 
     var body: some View {
         let config = engine.config[scope]
@@ -14,6 +15,9 @@ struct PopoverView: View {
         let active = engine.active[scope]
         let all = config.priority + config.disabled
         let ambiguous = Set(Dictionary(grouping: all, by: \.displayName).filter { $0.value.count > 1 }.keys)
+        let disabledOpen = disabledExpanded[scope] ?? config.isDisabled(active)
+        // The popover sizes itself to the list, so the list needs an explicit height.
+        let rows = config.priority.count + (config.disabled.isEmpty ? 0 : 1 + (disabledOpen ? config.disabled.count : 0))
 
         VStack(spacing: 8) {
             Picker("Scope", selection: $scope) {
@@ -37,24 +41,27 @@ struct PopoverView: View {
                 }
 
                 // G11: open iff the active device is disabled, unless the user toggled it.
-                DisclosureGroup(isExpanded: Binding(
-                    get: { disabledExpanded[scope] ?? config.isDisabled(active) },
-                    set: { disabledExpanded[scope] = $0 }
-                )) {
-                    ForEach(config.disabled) { entry in
-                        DeviceRow(engine: engine, scope: scope, entry: entry, position: nil,
-                                  ambiguous: ambiguous.contains(entry.displayName),
-                                  isConnected: connected.contains(entry.uid), isActive: active == entry.uid)
+                if !config.disabled.isEmpty {
+                    DisclosureGroup(isExpanded: Binding(
+                        get: { disabledOpen },
+                        set: { disabledExpanded[scope] = $0 }
+                    )) {
+                        ForEach(config.disabled) { entry in
+                            DeviceRow(engine: engine, scope: scope, entry: entry, position: nil,
+                                      ambiguous: ambiguous.contains(entry.displayName),
+                                      isConnected: connected.contains(entry.uid), isActive: active == entry.uid)
+                        }
+                    } label: {
+                        Text("Disabled (\(config.disabled.count))")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                } label: {
-                    Text("Disabled (\(config.disabled.count))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    .listRowSeparator(.hidden)
                 }
-                .listRowSeparator(.hidden)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .frame(height: min(CGFloat(rows) * Self.rowHeight, Self.maxListHeight))
 
             if let error = engine.lastError {
                 Text(error)
@@ -62,29 +69,9 @@ struct PopoverView: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 12)
             }
-
-            Divider()
-
-            VStack(spacing: 6) {
-                Toggle("Launch at Login", isOn: $launchAtLogin)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .onChange(of: launchAtLogin) { _, enabled in
-                        do {
-                            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                        } catch {
-                            engine.lastError = "Launch at login: \(error.localizedDescription)"
-                        }
-                    }
-                Button("Quit KlangLadder") { NSApp.terminate(nil) }
-                    .buttonStyle(.accessoryBar)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 10)
         }
-        .frame(width: 320, height: 380)
+        .padding(.bottom, 8)
+        .frame(width: 320)
         .onAppear { engine.lastError = nil }
     }
 }
@@ -115,16 +102,18 @@ struct DeviceRow: View {
                 .frame(width: 22, height: 22)
                 .background(Circle().fill(isActive ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary)))
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(entry.displayName)
-                    .fontWeight(isActive ? .semibold : .regular)
-                    .lineLimit(1)
-                if let subtitle {
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
-                }
-            }
+            Text(entry.displayName)
+                .fontWeight(isActive ? .semibold : .regular)
+                .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 8)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
 
             Menu { actions } label: { Image(systemName: "ellipsis") }
                 .menuStyle(.borderlessButton)
@@ -133,22 +122,20 @@ struct DeviceRow: View {
                 .opacity(hovering ? 1 : 0)
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .frame(height: 26)
         .opacity(isConnected ? 1 : 0.5)
         .contentShape(Rectangle())
         .background(RoundedRectangle(cornerRadius: 6).fill(hovering ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear)))
         .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
         .listRowSeparator(.hidden)
-        .help("\(entry.transport) · last seen \(entry.lastSeen.formatted(date: .abbreviated, time: .shortened)) · \(entry.uid)")
+        .help("\(isConnected ? "Connected" : "Disconnected") · \(entry.transport) · last seen \(entry.lastSeen.formatted(date: .abbreviated, time: .shortened)) · \(entry.uid)")
         .onHover { hovering = $0 }
         .onTapGesture { if isConnected { engine.makeActive(entry.uid, scope) } }
         .contextMenu { actions }
     }
 
-    private var subtitle: String? {
-        let parts = [ambiguous ? entry.transport : nil, isConnected ? nil : "Disconnected"].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
+    /// Only when two devices share a name (section 10). Disconnected shows as dimmed, like an unavailable menu item.
+    private var subtitle: String? { ambiguous ? entry.transport : nil }
 
     private var symbol: String {
         switch entry.transport {

@@ -69,7 +69,7 @@ cd raycast && npm install && npm run dev
 
 ## Use
 
-Click the menu bar icon to open the popover.
+Left-click the menu bar icon to open the device lists. Right-click it for settings.
 
 - **Output / Input tabs:** each tab has its own priority list. The popover opens on the tab you used last.
 - **Make a device active:** click a connected device.
@@ -80,10 +80,9 @@ Click the menu bar icon to open the popover.
   - Enable (in the Disabled list): adds the device to the bottom of the priority list
   - Delete: only for disconnected devices
 - **Disabled list:** collapsed below the priority list. It opens by itself when the active device is disabled. Click it to expand or collapse it.
-- **Launch at login:** turn on the switch at the bottom of the popover.
-- **Quit:** click **Quit KlangLadder**.
+- **Settings:** right-click the menu bar icon for **Launch at Login** and **Quit KlangLadder**.
 
-The active device has a filled icon and a bold name. Disconnected devices are dimmed and labelled. Hover over a device to see its connection type, when it was last seen and its ID.
+The popover is as tall as your device list, up to twelve rows. The active device has a filled icon and a bold name. Disconnected devices are dimmed. Hover over a device to see whether it is connected, its connection type, when it was last seen and its ID.
 
 Reordering, disabling, enabling and deleting never switch devices by themselves. They take effect on the next connect or disconnect.
 
