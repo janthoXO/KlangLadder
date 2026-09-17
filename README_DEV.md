@@ -233,12 +233,18 @@ Not covered yet: engine-level behavior (manual changes, startup once per session
 
 Manual checks on hardware are tracked in issues #5, #6 and #7.
 
+## Raycast extension
+
+`raycast/` is a minimal Raycast extension with one command, **Open KlangLadder** (`raycast/src/open.ts`, `mode: "no-view"`). It checks `getApplications()` for a bundle ID of `dev.klangladder.KlangLadder`; if missing, it shows a toast with a "Copy Install Command" action (the Homebrew tap command); if present, it calls `closeMainWindow()` then `open("klangladder://open")` (7.3).
+
+This is the S2 fallback from 11: a companion extension that requires the app to be installed separately, instead of bundling the app inside the extension (S1, 9.2). Bundling the Swift app per 9.2 is still open, see issue #2.
+
 ## Roadmap
 
 See the GitHub issues and DESIGN.md sections 13–14. Main open items:
 
 - Homebrew tap (#1)
-- Raycast extension (#2)
+- Raycast extension (#2) — partially done: the standalone "Open KlangLadder" command exists (`raycast/`); bundling the app in the extension (S1, 9.2) is still open
 - GitHub releases (#3)
 - CLI mode for reads (#11)
 - URL write commands (#12)

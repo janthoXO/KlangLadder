@@ -25,7 +25,7 @@ KlangLadder reacts to system events. It does not poll, and it needs no special p
 
 ## Install
 
-For now, KlangLadder is installed by building it from source. A Homebrew tap, GitHub releases and a Raycast extension are planned.
+For now, KlangLadder is installed by building it from source. A Homebrew tap and GitHub releases are planned.
 
 ```sh
 git clone https://github.com/janthoXO/KlangLadder.git
@@ -36,6 +36,14 @@ open ~/Applications/KlangLadder.app
 ```
 
 The app appears as a speaker icon in the menu bar. It has no Dock icon.
+
+### Raycast
+
+The extension in [`raycast/`](raycast/) adds an "Open KlangLadder" command to Raycast. It requires the app to already be installed; it does not bundle it. To load it locally:
+
+```sh
+cd raycast && npm install && npm run dev
+```
 
 A locally built app is not quarantined, so macOS should open it without a Gatekeeper prompt.
 
