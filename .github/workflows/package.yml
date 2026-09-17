@@ -15,8 +15,6 @@ permissions:
 
 jobs:
   scope:
-    # Only when triggered directly. When called, github.workflow is the caller's name.
-    if: github.workflow == 'Package'
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.scope.outputs.package }}
@@ -29,7 +27,8 @@ jobs:
 
   build:
     needs: scope
-    if: ${{ !cancelled() && (github.workflow != 'Package' || needs.scope.outputs.run == 'true') }}
+    # When called, github.workflow is the caller's name and the caller decides.
+    if: github.workflow != 'Package' || needs.scope.outputs.run == 'true'
     uses: ./.github/workflows/build.yml
 
   app:

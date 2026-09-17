@@ -26,6 +26,12 @@ runs:
         BASE: ${{ github.base_ref }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       run: |
+        if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
+          # Called by another workflow, or a push. The caller decides what runs.
+          { echo "build=false"; echo "package=false"; echo "release=false"; } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
         files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename')
         changed() { grep -qxE "$1" <<<"$files"; }
 
