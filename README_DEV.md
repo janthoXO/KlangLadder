@@ -48,6 +48,7 @@ Tests/
     RulesTests.swift        switching rules and list operations
 bundle.sh                   builds KlangLadder and bundles it into build/KlangLadder.app
 raycast/                    Raycast extension; bundles and installs the app (see below)
+Formula/klangladder.rb      Homebrew formula (see below)
 ```
 
 The design mentions a separate `KlangLadderUI` module. The views live in `KlangLadderApp` instead, because nothing but the app and the Raycast bridge use them. `KlangLadderApp` is a library (not the executable) so the Raycast extension's own binary can link it and run the app directly, without shelling out to a separate process.
@@ -271,11 +272,32 @@ The target uses only `RaycastTypeScriptPlugin`, not `RaycastSwiftPlugin`, becaus
 - The standalone-version compatibility check from 9.2 is skipped: the only command sent is `klangladder://open`, which every version supports.
 - Uninstalling the extension does not remove the installed app.
 
+## Homebrew formula
+
+`Formula/klangladder.rb` makes this repository its own tap. `brew tap janthoXO/klangladder <repo URL>` is needed because the repository is not named `homebrew-klangladder`.
+
+- The formula is head-only for now. After the first tag (#3), add `url` with `tag:` and `revision:` so `brew install` and `brew upgrade` work without `--HEAD`.
+- `install` runs `bundle.sh --disable-sandbox`. SwiftPM's own sandbox can't run inside Homebrew's build sandbox, so `bundle.sh` passes its arguments on to `swift build`.
+- The app lands in the keg, at `$(brew --prefix)/opt/klangladder/KlangLadder.app`.
+- `service` runs the app binary through a LaunchAgent (`sh.brew.klangladder`). If another copy is already running, the single instance rule makes the new one quit.
+- `test` checks that the binary exists and the ad-hoc signature verifies.
+
+To test changes locally, copy the formula into a local tap, then install:
+
+```sh
+brew tap-new --no-git local/klangtest
+# point `head` at file:///path/to/KlangLadder with branch: "<your branch>"
+cp Formula/klangladder.rb "$(brew --repository)/Library/Taps/local/homebrew-klangtest/Formula/"
+brew install --HEAD local/klangtest/klangladder
+brew audit --strict --formula local/klangtest/klangladder
+brew test local/klangtest/klangladder
+```
+
 ## Roadmap
 
 See the GitHub issues and DESIGN.md sections 13–14. Main open items:
 
-- Homebrew tap (#1)
+- Homebrew: stable version after the first tag (#1, #3)
 - Raycast extension (#2) — the extension bundles and installs the app (9.2, S1); Raycast Store acceptance (S2) and switching the path dependency to a tagged release are still open
 - GitHub releases (#3)
 - CLI mode for reads (#11)
