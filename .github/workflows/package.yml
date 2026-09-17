@@ -1,0 +1,91 @@
+name: Package
+
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      version:
+        description: Version written into the app bundle
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scope:
+    # Only when triggered directly. When called, github.workflow is the caller's name.
+    if: github.workflow == 'Package'
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.scope.outputs.package }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github
+      - id: scope
+        uses: ./.github/actions/ci-scope
+
+  build:
+    needs: scope
+    if: ${{ !cancelled() && (github.workflow != 'Package' || needs.scope.outputs.run == 'true') }}
+    uses: ./.github/workflows/build.yml
+
+  app:
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Bundle app
+        env:
+          VERSION: ${{ inputs.version }}
+        run: ./bundle.sh
+
+      - name: Verify bundle
+        run: |
+          plutil -lint build/KlangLadder.app/Contents/Info.plist
+          codesign --verify --strict build/KlangLadder.app
+          ditto -c -k --keepParent build/KlangLadder.app KlangLadder.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KlangLadder-app
+          path: KlangLadder.zip
+
+  homebrew:
+    needs: build
+    runs-on: macos-latest
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install formula from this commit
+        run: |
+          git branch -f ci-formula HEAD
+          brew tap-new --no-git local/ci
+          sed -E "s#^  head .*#  head \"file://$GITHUB_WORKSPACE\", branch: \"ci-formula\", using: :git#" \
+            Formula/klangladder.rb > "$(brew --repository)/Library/Taps/local/homebrew-ci/Formula/klangladder.rb"
+          brew install --HEAD local/ci/klangladder
+          brew test local/ci/klangladder
+          brew audit --strict --formula local/ci/klangladder
+
+  raycast:
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: raycast/package-lock.json
+
+      - name: Build Raycast extension with the bundled app
+        working-directory: raycast
+        run: |
+          npm ci
+          npm run build

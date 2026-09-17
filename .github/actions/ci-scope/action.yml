@@ -1,0 +1,47 @@
+name: CI Scope
+description: >
+  Decides which workflow runs standalone for a pull request, so a workflow that another one
+  calls doesn't run twice. Release calls Package, Package calls Build. The outermost
+  workflow that has to run wins.
+
+outputs:
+  build:
+    description: "true if Build runs standalone"
+    value: ${{ steps.scope.outputs.build }}
+  package:
+    description: "true if Package runs standalone"
+    value: ${{ steps.scope.outputs.package }}
+  release:
+    description: "true if Release runs (as a dry run)"
+    value: ${{ steps.scope.outputs.release }}
+
+runs:
+  using: composite
+  steps:
+    - id: scope
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        BASE: ${{ github.base_ref }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: |
+        files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename')
+        changed() { grep -qxE "$1" <<<"$files"; }
+
+        # Each workflow also runs when a workflow or action it depends on changes.
+        shared='\.github/actions/ci-scope/action\.yml'
+        build_deps="\.github/workflows/build\.yml|$shared"
+        package_deps="\.github/workflows/package\.yml|$build_deps"
+        release_deps="\.github/workflows/release\.yml|\.github/actions/determine-version/action\.yml|$package_deps"
+
+        build=false package=false release=false
+        if changed "$release_deps"; then
+          release=true
+        elif [[ "$BASE" == "$DEFAULT_BRANCH" ]] || changed "$package_deps"; then
+          package=true
+        else
+          build=true
+        fi
+        echo "build=$build package=$package release=$release"
+        { echo "build=$build"; echo "package=$package"; echo "release=$release"; } >> "$GITHUB_OUTPUT"

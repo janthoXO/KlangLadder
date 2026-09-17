@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scope:
+    # Only when triggered directly. When called, github.workflow is the caller's name.
+    if: github.workflow == 'Build'
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.scope.outputs.build }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github
+      - id: scope
+        uses: ./.github/actions/ci-scope
+
+  build:
+    needs: scope
+    if: ${{ !cancelled() && (github.workflow != 'Build' || needs.scope.outputs.run == 'true') }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build app
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: raycast/package-lock.json
+
+      - name: Lint Raycast extension
+        working-directory: raycast
+        run: |
+          npm ci
+          npm run lint

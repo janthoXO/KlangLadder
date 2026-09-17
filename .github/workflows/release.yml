@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # Dry run (no publishing) when a pull request changes this workflow or one it depends on.
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scope:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.scope.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github
+      - id: scope
+        uses: ./.github/actions/ci-scope
+
+  version:
+    needs: scope
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.scope.outputs.run == 'true') }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: version
+        uses: ./.github/actions/determine-version
+
+  package:
+    needs: version
+    uses: ./.github/workflows/package.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  github-release:
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: KlangLadder-app
+
+      - name: Create release
+        run: |
+          mv KlangLadder.zip "KlangLadder-$TAG.zip"
+          if [[ "$GITHUB_EVENT_NAME" != push ]]; then
+            echo "Dry run: would create release $TAG at $GITHUB_SHA with KlangLadder-$TAG.zip"
+            exit 0
+          fi
+          gh release create "$TAG" "KlangLadder-$TAG.zip" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
+            --notes "The app is not notarized, so Gatekeeper blocks it after download. Open it once, then allow it in System Settings → Privacy & Security. Installing with Homebrew or Raycast avoids this."
+
+  homebrew:
+    needs: [version, github-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: v${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Point the formula at the release tag
+        run: |
+          ruby - <<'RUBY'
+          path = "Formula/klangladder.rb"
+          stable = %(  url "https://github.com/#{ENV["GITHUB_REPOSITORY"]}.git",\n) +
+                   %(      tag:      "#{ENV["TAG"]}",\n) +
+                   %(      revision: "#{ENV["GITHUB_SHA"]}"\n)
+          formula = File.read(path).sub(/^  url .*?revision: "\h+"\n/m, "")
+          File.write(path, formula.sub(/^  homepage .*\n/) { |line| line + stable })
+          RUBY
+          git diff
+
+      - name: Commit to the tap
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git diff --quiet && exit 0
+          git commit -am "klangladder $TAG"
+          git pull --rebase
+          git push
+
+  raycast:
+    needs: [version, github-release]
+    runs-on: macos-latest
+    env:
+      TAG: v${{ needs.version.outputs.version }}
+      RAY_TOKEN: ${{ secrets.RAYCAST_TOKEN }}
+      GITHUB_ACCESS_TOKEN: ${{ secrets.RAYCAST_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: raycast/package-lock.json
+
+      - name: Depend on the released app sources
+        working-directory: raycast/swift
+        run: |
+          # The Store builds the extension outside this repo, so the path dependency can't work there.
+          # Before the tag exists (dry run), pin the commit instead.
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            pin="exact: \"${TAG#v}\""
+          else
+            pin="revision: \"${{ github.event.pull_request.head.sha }}\""
+          fi
+          sed -i '' "s#\.package(path: \"\.\./\.\.\")#.package(url: \"https://github.com/$GITHUB_REPOSITORY\", $pin)#" Package.swift
+          grep -F "$GITHUB_REPOSITORY" Package.swift
+          rm -f Package.resolved
+
+      - name: Build
+        working-directory: raycast
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish to the Raycast Store
+        if: github.event_name == 'push'
+        working-directory: raycast
+        run: |
+          if [[ -z "$RAY_TOKEN" || -z "$GITHUB_ACCESS_TOKEN" ]]; then
+            echo "::warning::RAYCAST_TOKEN or RAYCAST_GITHUB_TOKEN secret missing, skipping Store publish"
+            exit 0
+          fi
+          npm run publish
