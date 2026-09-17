@@ -215,16 +215,22 @@ Example:
 
 ## Popover (`PopoverView.swift`)
 
+Styled after the system menu bar extras (Sound, Wi-Fi, Bluetooth): stock SwiftUI components, system shape styles instead of hand-picked colors, and no background of its own, so the popover's material shows through (`.listStyle(.plain)` plus `.scrollContentBackground(.hidden)`). The fixed size is 320×380, set both here and in `App.swift`.
+
 - The segmented tab is stored in `@AppStorage("lastTab")`.
 - The priority list is a `ForEach` with `.onMove` for drag and drop. It writes through `engine.edit`.
 - The Disabled list is a `DisclosureGroup`. `isExpanded` is the user's manual toggle if set, else "the active device is disabled" (G11).
 - **`DeviceRow`**
   - Tap on a connected device: `makeActive`.
-  - Context menu and hover `…` menu share one action list.
-  - Hover trash button for disconnected devices.
+  - Each row has a device icon in a circle, picked from the transport (headphones for Bluetooth, display for HDMI, and so on). The active device's circle is filled with the accent color and its name is bold, the way the Sound menu marks the selected device.
+  - Connection state and duplicate names go into a caption line under the name. Disconnected rows are also dimmed.
+  - Hovering highlights the row with the system `.quaternary` style and reveals the `…` menu.
+  - Context menu and hover `…` menu share one action list, including Delete for disconnected devices; there's no separate trash button.
   - Tooltip shows transport, last seen and UID.
   - Duplicate names get a transport suffix (section 10).
-- The launch at login toggle uses `SMAppService.mainApp`. Errors show in the red error line.
+- The footer is separated by a `Divider`: a `.switch` toggle for launch at login (`SMAppService.mainApp`, errors go to the red error line) and a `.accessoryBar` button to quit, both left aligned like the rows above them.
+
+There is no committed snapshot test. To review layout changes, add a temporary test target that hosts `PopoverView` in an offscreen `NSWindow` and captures it with `CGWindowListCreateImage`; `cacheDisplay` leaves list and control text blank.
 
 ## Tests
 

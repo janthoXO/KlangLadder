@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let host = NSHostingController(rootView: PopoverView(engine: engine))
         host.sizingOptions = []  // List reports no stable ideal size; let the fixed frame win
         popover.contentViewController = host
-        popover.contentSize = NSSize(width: 380, height: 460)
+        popover.contentSize = NSSize(width: 320, height: 380)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate()
     }
