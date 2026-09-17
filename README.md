@@ -37,6 +37,10 @@ open ~/Applications/KlangLadder.app
 
 The app appears as a speaker icon in the menu bar. It has no Dock icon.
 
+A locally built app is not quarantined, so macOS should open it without a Gatekeeper prompt.
+
+On its first run, KlangLadder puts your current default device at the top of each list. It doesn't switch your audio until you change the order.
+
 ### Raycast
 
 The extension in [`raycast/`](raycast/) adds an "Open KlangLadder" command to Raycast. It requires the app to already be installed; it does not bundle it. To load it locally:
@@ -44,10 +48,6 @@ The extension in [`raycast/`](raycast/) adds an "Open KlangLadder" command to Ra
 ```sh
 cd raycast && npm install && npm run dev
 ```
-
-A locally built app is not quarantined, so macOS should open it without a Gatekeeper prompt.
-
-On its first run, KlangLadder puts your current default device at the top of each list. It doesn't switch your audio until you change the order.
 
 ## Use
 
