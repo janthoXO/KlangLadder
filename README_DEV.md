@@ -299,19 +299,19 @@ Three workflows in `.github/workflows` call each other: Release calls Package, a
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `build.yml` | every pull request | `swift build`, `swift test`, `ray lint` |
-| `package.yml` | pull requests to `main` | Build, then in parallel: `bundle.sh` and upload the zipped app as the `KlangLadder-app` artifact; install, test and audit the formula from a local tap; `ray build` (compiles the bundled app) |
+| `build.yml` | pull requests to any branch except `main` | `swift build`, `swift test`, `ray lint` |
+| `package.yml` | pull requests to `main` | Build, then in parallel: `bundle.sh` and upload the zipped app as the `KlangLadder-app` artifact; install, test and audit the formula from a local tap; `ray build`, which compiles the bundled app |
 | `release.yml` | every push to `main` | Determine the version (`.github/actions/determine-version`), Package with that version, create GitHub release `v<version>` with the zip, point the formula at the new tag and commit it to `main`, publish the Raycast extension |
 
-Each workflow also runs on a pull request that changes its own workflow file or one it depends on. Release then runs as a **dry run**: it packages and prints what it would publish, but creates no release, commit or Store submission.
+**No duplicate runs.** The triggers don't overlap: Build skips pull requests to `main`, because Package runs there and calls it. Release only runs on `main`, and calls Package.
 
-**No duplicate runs.** Every workflow triggers on all pull requests. Its first job, `scope`, calls `.github/actions/ci-scope`, which reads the changed files and picks the outermost workflow that has to run: Release if release dependencies changed, else Package for pull requests to `main` or when package dependencies changed, else Build. The other two skip their jobs. A called workflow skips `scope`, because `github.workflow` is then the caller's name, and always runs.
+**Checking a release without publishing.** Run Release manually (`workflow_dispatch`) and leave `publish` off. It builds everything and prints what it would publish, but creates no release, commit or Store submission.
 
 **Versioning.** `bundle.sh` writes `$VERSION` into the Info.plist when it's set. The formula sets it from the tag for stable builds.
 
 **Homebrew.** The release job rewrites the formula's `url` to `tag: "v<version>"` plus `revision:`, then commits to `main` as `github-actions[bot]`. Pushes made with `GITHUB_TOKEN` don't trigger workflows, so this doesn't start another release. If `main` gets branch protection, allow the bot to push or switch to a pull request.
 
-**Raycast Store.** Before building, the job replaces the `../..` path dependency in `raycast/swift/Package.swift` with the GitHub URL at the new version (at the pull request head commit for a dry run), because the Store builds the extension outside this repository. Publishing runs `ray publish` and needs two repository secrets:
+**Raycast Store.** Before building, the job replaces the `../..` path dependency in `raycast/swift/Package.swift` with the GitHub URL at the new version (at the current commit for a dry run), because the Store builds the extension outside this repository. Publishing runs `ray publish` and needs two repository secrets:
 
 - `RAYCAST_TOKEN`: Raycast access token (`RAY_TOKEN`)
 - `RAYCAST_GITHUB_TOKEN`: GitHub token that can fork `raycast/extensions` and open pull requests (`GITHUB_ACCESS_TOKEN`)

@@ -3,33 +3,23 @@ name: Release
 on:
   push:
     branches: [main]
-  # Dry run (no publishing) when a pull request changes this workflow or one it depends on.
-  pull_request:
+  # Manual run to check the release path. Without "publish" it stops before publishing.
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Create the release, update the tap and publish to the Raycast Store
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  pull-requests: read
 
 concurrency:
-  group: release-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  scope:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.scope.outputs.release }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          sparse-checkout: .github
-      - id: scope
-        uses: ./.github/actions/ci-scope
-
   version:
-    needs: scope
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.scope.outputs.run == 'true') }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -52,6 +42,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: v${{ needs.version.outputs.version }}
+      PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
     steps:
       - uses: actions/download-artifact@v5
         with:
@@ -60,7 +51,7 @@ jobs:
       - name: Create release
         run: |
           mv KlangLadder.zip "KlangLadder-$TAG.zip"
-          if [[ "$GITHUB_EVENT_NAME" != push ]]; then
+          if [[ "$PUBLISH" != true ]]; then
             echo "Dry run: would create release $TAG at $GITHUB_SHA with KlangLadder-$TAG.zip"
             exit 0
           fi
@@ -93,7 +84,7 @@ jobs:
           git diff
 
       - name: Commit to the tap
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || inputs.publish
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -107,6 +98,7 @@ jobs:
     runs-on: macos-latest
     env:
       TAG: v${{ needs.version.outputs.version }}
+      PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
       RAY_TOKEN: ${{ secrets.RAYCAST_TOKEN }}
       GITHUB_ACCESS_TOKEN: ${{ secrets.RAYCAST_GITHUB_TOKEN }}
     steps:
@@ -123,10 +115,10 @@ jobs:
         run: |
           # The Store builds the extension outside this repo, so the path dependency can't work there.
           # Before the tag exists (dry run), pin the commit instead.
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+          if [[ "$PUBLISH" == true ]]; then
             pin="exact: \"${TAG#v}\""
           else
-            pin="revision: \"${{ github.event.pull_request.head.sha }}\""
+            pin="revision: \"$GITHUB_SHA\""
           fi
           sed -i '' "s#\.package(path: \"\.\./\.\.\")#.package(url: \"https://github.com/$GITHUB_REPOSITORY\", $pin)#" Package.swift
           grep -F "$GITHUB_REPOSITORY" Package.swift
@@ -139,7 +131,7 @@ jobs:
           npm run build
 
       - name: Publish to the Raycast Store
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || inputs.publish
         working-directory: raycast
         run: |
           if [[ -z "$RAY_TOKEN" || -z "$GITHUB_ACCESS_TOKEN" ]]; then

@@ -2,6 +2,7 @@ name: Package
 
 on:
   pull_request:
+    branches: [main]
   workflow_call:
     inputs:
       version:
@@ -11,24 +12,9 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
-  scope:
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.scope.outputs.package }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          sparse-checkout: .github
-      - id: scope
-        uses: ./.github/actions/ci-scope
-
   build:
-    needs: scope
-    # When called, github.workflow is the caller's name and the caller decides.
-    if: github.workflow != 'Package' || needs.scope.outputs.run == 'true'
     uses: ./.github/workflows/build.yml
 
   app:
