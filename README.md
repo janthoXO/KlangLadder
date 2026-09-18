@@ -75,7 +75,7 @@ Left-click the menu bar icon to open the device lists. Right-click it for settin
 
 - **Output / Input tabs:** each tab has its own priority list. The popover opens on the tab you used last.
 - **Make a device active:** click a connected device.
-- **Change the ranking:** drag a device onto the row whose place it should take, or use **Move Up** / **Move Down** to shift it one place. The device at the top is number 1.
+- **Change the ranking:** drag a device to a new place, or use **Move Up** / **Move Down** to shift it one place. The device at the top is number 1.
 - **More actions:** right-click a device, or hover over it and click the **…** button that appears.
   - Move Up / Move Down: one place at a time
   - Disable: moves the device to the Disabled list
