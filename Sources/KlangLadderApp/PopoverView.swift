@@ -33,11 +33,9 @@ struct PopoverView: View {
             List {
                 ForEach(Array(config.priority.enumerated()), id: \.element.id) { index, entry in
                     DeviceRow(engine: engine, scope: scope, entry: entry, position: index + 1,
+                              isLast: index == config.priority.count - 1,
                               ambiguous: ambiguous.contains(entry.displayName),
                               isConnected: connected.contains(entry.uid), isActive: active == entry.uid)
-                }
-                .onMove { from, to in
-                    engine.edit(scope) { $0.priority.move(fromOffsets: from, toOffset: to) }
                 }
 
                 // G11: open iff the active device is disabled, unless the user toggled it.
@@ -47,7 +45,7 @@ struct PopoverView: View {
                         set: { disabledExpanded[scope] = $0 }
                     )) {
                         ForEach(config.disabled) { entry in
-                            DeviceRow(engine: engine, scope: scope, entry: entry, position: nil,
+                            DeviceRow(engine: engine, scope: scope, entry: entry, position: nil, isLast: false,
                                       ambiguous: ambiguous.contains(entry.displayName),
                                       isConnected: connected.contains(entry.uid), isActive: active == entry.uid)
                         }
@@ -81,10 +79,12 @@ struct DeviceRow: View {
     let scope: Scope
     let entry: DeviceEntry
     let position: Int?  // nil = in Disabled list
+    let isLast: Bool
     let ambiguous: Bool
     let isConnected: Bool
     let isActive: Bool
     @State private var hovering = false
+    @State private var dropTarget = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -125,13 +125,20 @@ struct DeviceRow: View {
         .frame(height: 26)
         .opacity(isConnected ? 1 : 0.5)
         .contentShape(Rectangle())
-        .background(RoundedRectangle(cornerRadius: 6).fill(hovering ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear)))
+        .background(RoundedRectangle(cornerRadius: 6).fill(hovering || dropTarget ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear)))
         .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
         .listRowSeparator(.hidden)
         .help("\(isConnected ? "Connected" : "Disconnected") · \(entry.transport) · last seen \(entry.lastSeen.formatted(date: .abbreviated, time: .shortened)) · \(entry.uid)")
         .onHover { hovering = $0 }
         .onTapGesture { if isConnected { engine.makeActive(entry.uid, scope) } }
         .contextMenu { actions }
+        // List's .onMove never starts a drag on macOS while rows have a tap gesture, so rows drag themselves.
+        .draggable(entry.uid)
+        .dropDestination(for: String.self) { uids, _ in
+            guard let uid = uids.first, let position, engine.config[scope].rank(uid) != nil else { return false }
+            engine.edit(scope) { $0.move(uid, to: position - 1) }
+            return true
+        } isTargeted: { dropTarget = $0 && position != nil }
     }
 
     /// Only when two devices share a name (section 10). Disconnected shows as dimmed, like an unavailable menu item.
@@ -149,9 +156,11 @@ struct DeviceRow: View {
 
     @ViewBuilder private var actions: some View {
         let uid = entry.uid
-        if position != nil {
-            Button("Move to Top") { engine.edit(scope) { $0.moveToTop(uid) } }
-            Button("Move to Bottom") { engine.edit(scope) { $0.moveToBottom(uid) } }
+        if let position {
+            Button("Move Up") { engine.edit(scope) { $0.move(uid, to: position - 2) } }
+                .disabled(position == 1)
+            Button("Move Down") { engine.edit(scope) { $0.move(uid, to: position) } }
+                .disabled(isLast)
             Button("Disable") { engine.edit(scope) { $0.disable(uid) } }
         } else {
             Button("Enable") { engine.edit(scope) { $0.enable(uid) } }

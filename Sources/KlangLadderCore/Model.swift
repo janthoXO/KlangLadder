@@ -89,14 +89,11 @@ public struct ScopeConfig: Codable, Equatable, Sendable {
         if let i = disabled.firstIndex(where: { $0.uid == uid }) { change(&disabled[i]) }
     }
 
-    public mutating func moveToTop(_ uid: String) {
+    /// Moves a priority entry to `index`, clamped to the list. Used by Move Up/Down and drag and drop.
+    public mutating func move(_ uid: String, to index: Int) {
         guard let i = rank(uid) else { return }
-        priority.insert(priority.remove(at: i), at: 0)
-    }
-
-    public mutating func moveToBottom(_ uid: String) {
-        guard let i = rank(uid) else { return }
-        priority.append(priority.remove(at: i))
+        let entry = priority.remove(at: i)
+        priority.insert(entry, at: min(max(index, 0), priority.count))
     }
 
     public mutating func disable(_ uid: String) {

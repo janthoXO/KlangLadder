@@ -221,7 +221,7 @@ Styled after the system menu bar extras (Sound, Wi-Fi, Bluetooth): stock SwiftUI
 The width is 320. The height follows the content: rows are exactly 28 points tall, so the view gives the `List` `rows * 28`, capped at twelve rows, and `App.swift` lets the hosting controller report that size (`sizingOptions = [.preferredContentSize]`). A `List` has no ideal height of its own, so without that explicit height the popover grew past the screen.
 
 - The segmented tab is stored in `@AppStorage("lastTab")`.
-- The priority list is a `ForEach` with `.onMove` for drag and drop. It writes through `engine.edit`.
+- Reordering goes through `ScopeConfig.move(_:to:)`, which clamps the index. Move Up and Move Down pass the neighbouring index. Drag and drop uses `.draggable` and `.dropDestination` on each priority row, carrying the device UID: a drop moves the device to the target row's index. `List`'s `.onMove` isn't used, because on macOS it never starts a drag while rows have a tap gesture.
 - The Disabled list is a `DisclosureGroup`. `isExpanded` is the user's manual toggle if set, else "the active device is disabled" (G11).
 - **`DeviceRow`**
   - Tap on a connected device: `makeActive`.
