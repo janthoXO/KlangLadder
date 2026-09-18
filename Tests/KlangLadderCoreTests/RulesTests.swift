@@ -150,14 +150,17 @@ private func cfg(_ priority: [String], disabled: [String] = []) -> ScopeConfig {
     #expect(c.disabled.map(\.uid) == ["b"])
 }
 
-@Test func moveToTopMovesEntryToFront() {
+@Test func moveShiftsEntryOneSlotOrToDropTarget() {
     var c = cfg(["a", "b", "c"])
-    c.moveToTop("c")
+    c.move("c", to: 1)                       // Move Up
+    #expect(c.priority.map(\.uid) == ["a", "c", "b"])
+    c.move("a", to: 1)                       // Move Down
     #expect(c.priority.map(\.uid) == ["c", "a", "b"])
-}
-
-@Test func moveToBottomMovesEntryToEnd() {
-    var c = cfg(["a", "b", "c"])
-    c.moveToBottom("a")
-    #expect(c.priority.map(\.uid) == ["b", "c", "a"])
+    c.move("c", to: 2)                       // dropped on the last row
+    #expect(c.priority.map(\.uid) == ["a", "b", "c"])
+    c.move("a", to: -1)                      // Move Up on the first row
+    c.move("c", to: 3)                       // Move Down on the last row
+    #expect(c.priority.map(\.uid) == ["a", "b", "c"])
+    c.move("x", to: 0)                       // not in the priority list
+    #expect(c.priority.map(\.uid) == ["a", "b", "c"])
 }

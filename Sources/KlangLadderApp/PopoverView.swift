@@ -30,9 +30,14 @@ struct PopoverView: View {
             .padding(.horizontal, 12)
             .padding(.top, 12)
 
-            List {
+            // Native click and drag: a tap gesture on the rows would stop the list from starting drags.
+            List(selection: Binding(
+                get: { active },
+                set: { uid in if let uid, connected.contains(uid) { engine.makeActive(uid, scope) } }
+            )) {
                 ForEach(Array(config.priority.enumerated()), id: \.element.id) { index, entry in
                     DeviceRow(engine: engine, scope: scope, entry: entry, position: index + 1,
+                              isLast: index == config.priority.count - 1,
                               ambiguous: ambiguous.contains(entry.displayName),
                               isConnected: connected.contains(entry.uid), isActive: active == entry.uid)
                 }
@@ -47,7 +52,7 @@ struct PopoverView: View {
                         set: { disabledExpanded[scope] = $0 }
                     )) {
                         ForEach(config.disabled) { entry in
-                            DeviceRow(engine: engine, scope: scope, entry: entry, position: nil,
+                            DeviceRow(engine: engine, scope: scope, entry: entry, position: nil, isLast: false,
                                       ambiguous: ambiguous.contains(entry.displayName),
                                       isConnected: connected.contains(entry.uid), isActive: active == entry.uid)
                         }
@@ -81,6 +86,7 @@ struct DeviceRow: View {
     let scope: Scope
     let entry: DeviceEntry
     let position: Int?  // nil = in Disabled list
+    let isLast: Bool
     let ambiguous: Bool
     let isConnected: Bool
     let isActive: Bool
@@ -130,7 +136,6 @@ struct DeviceRow: View {
         .listRowSeparator(.hidden)
         .help("\(isConnected ? "Connected" : "Disconnected") · \(entry.transport) · last seen \(entry.lastSeen.formatted(date: .abbreviated, time: .shortened)) · \(entry.uid)")
         .onHover { hovering = $0 }
-        .onTapGesture { if isConnected { engine.makeActive(entry.uid, scope) } }
         .contextMenu { actions }
     }
 
@@ -149,9 +154,11 @@ struct DeviceRow: View {
 
     @ViewBuilder private var actions: some View {
         let uid = entry.uid
-        if position != nil {
-            Button("Move to Top") { engine.edit(scope) { $0.moveToTop(uid) } }
-            Button("Move to Bottom") { engine.edit(scope) { $0.moveToBottom(uid) } }
+        if let position {
+            Button("Move Up") { engine.edit(scope) { $0.move(uid, to: position - 2) } }
+                .disabled(position == 1)
+            Button("Move Down") { engine.edit(scope) { $0.move(uid, to: position) } }
+                .disabled(isLast)
             Button("Disable") { engine.edit(scope) { $0.disable(uid) } }
         } else {
             Button("Enable") { engine.edit(scope) { $0.enable(uid) } }
