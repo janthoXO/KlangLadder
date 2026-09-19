@@ -1,0 +1,30 @@
+# KlangLadder
+
+> KlangLadder is a free, open-source macOS 14+ menu bar app that automatically switches the default audio output and input device to the highest-ranked connected device from a user-defined priority list. It is written in Swift (SwiftUI, AppKit, Core Audio HAL) and installs with Homebrew, from a GitHub release zip, or through a Raycast extension.
+
+Key facts:
+
+- Separate priority lists for output (speakers, headphones, AirPods) and input (microphones).
+- Switches only when a device connects or disconnects, and on the first start per login session. It undoes a macOS auto-switch to a lower-ranked new device.
+- A default device chosen by hand in System Settings or Control Center is kept until the next connect or disconnect.
+- Devices can be disabled (for example virtual devices from Zoom, Teams or BlackHole) so they are never chosen.
+- Event-driven, no polling, no microphone or accessibility permission. It sets the system default device only; it does not route audio per app.
+- Install: `brew tap janthoXO/klangladder https://github.com/janthoXO/KlangLadder && brew install klangladder && brew services start klangladder`.
+- `open klangladder://open` opens the popover from other apps or scripts.
+
+## Docs
+
+- [README](https://github.com/janthoXO/KlangLadder/blob/main/README.md): features, installation, usage, FAQ and uninstall
+- [Developer guide](https://github.com/janthoXO/KlangLadder/blob/main/README_DEV.md): architecture, switching rules, Core Audio adapter, persistence, Raycast bridge, Homebrew formula, CI
+- [Design](https://github.com/janthoXO/KlangLadder/blob/main/DESIGN.md): full product design, goals and decision table
+
+## Source
+
+- [Switching rules](https://github.com/janthoXO/KlangLadder/blob/main/Sources/KlangLadderCore/Model.swift): `ScopeConfig` and the pure `Rules.target` function
+- [Engine](https://github.com/janthoXO/KlangLadder/blob/main/Sources/KlangLadderCore/Engine.swift): Core Audio events, debouncing, config storage
+- [Homebrew formula](https://github.com/janthoXO/KlangLadder/blob/main/Formula/klangladder.rb)
+
+## Optional
+
+- [Releases](https://github.com/janthoXO/KlangLadder/releases)
+- [Raycast extension](https://github.com/janthoXO/KlangLadder/tree/main/raycast)
