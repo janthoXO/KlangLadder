@@ -2,8 +2,8 @@ class Klangladder < Formula
   desc "Menu bar app that switches macOS default audio devices by priority"
   homepage "https://github.com/janthoXO/KlangLadder"
   url "https://github.com/janthoXO/KlangLadder.git",
-      tag:      "v0.0.2",
-      revision: "633527d0450cfe8241c4176db62a3150409083a0"
+      tag:      "v0.0.3",
+      revision: "b20d115818caf76e63e159ad8b142c5591229fd5"
   license "MIT"
   head "https://github.com/janthoXO/KlangLadder.git", branch: "main"
 
