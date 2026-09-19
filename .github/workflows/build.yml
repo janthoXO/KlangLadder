@@ -4,6 +4,12 @@ on:
   # Pull requests to main run Package, which calls this workflow.
   pull_request:
     branches-ignore: [main]
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "raycast/**"
+      - ".github/workflows/build.yml"
   workflow_call:
 
 permissions:
