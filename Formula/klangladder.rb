@@ -4,6 +4,7 @@ class Klangladder < Formula
   url "https://github.com/janthoXO/KlangLadder.git",
       tag:      "v0.0.2",
       revision: "633527d0450cfe8241c4176db62a3150409083a0"
+  license "MIT"
   head "https://github.com/janthoXO/KlangLadder.git", branch: "main"
 
   depends_on macos: :sonoma
