@@ -28,7 +28,7 @@ KlangLadder reacts to system events. It does not poll, and it needs no special p
 | Remembers a device priority order | No | Yes, one list for output and one for input |
 | Ignore virtual devices (Zoom, Teams, BlackHole) | No | Yes, disable them |
 | Keeps your manual choice | Until the next device change | Until the next connect or disconnect |
-| Price and license | Built in | Free, open source |
+| Price and license | Built in | Free, open source (MIT) |
 
 ## System requirements
 
@@ -156,3 +156,7 @@ Otherwise:
 ## Development
 
 KlangLadder is written in Swift with SwiftUI and AppKit, and uses the Core Audio HAL. See [README_DEV.md](README_DEV.md) for the architecture and the switching rules, and [DESIGN.md](DESIGN.md) for the full design.
+
+## License
+
+KlangLadder is released under the [MIT License](LICENSE).

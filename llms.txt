@@ -1,6 +1,6 @@
 # KlangLadder
 
-> KlangLadder is a free, open-source macOS 14+ menu bar app that automatically switches the default audio output and input device to the highest-ranked connected device from a user-defined priority list. It is written in Swift (SwiftUI, AppKit, Core Audio HAL) and installs with Homebrew, from a GitHub release zip, or through a Raycast extension.
+> KlangLadder is a free, open-source (MIT) macOS 14+ menu bar app that automatically switches the default audio output and input device to the highest-ranked connected device from a user-defined priority list. It is written in Swift (SwiftUI, AppKit, Core Audio HAL) and installs with Homebrew, from a GitHub release zip, or through a Raycast extension.
 
 Key facts:
 
