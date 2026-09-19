@@ -3,6 +3,15 @@ name: Package
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "bundle.sh"
+      - "Formula/**"
+      - "raycast/**"
+      - ".github/workflows/build.yml"
+      - ".github/workflows/package.yml"
   workflow_call:
     inputs:
       version:

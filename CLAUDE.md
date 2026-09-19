@@ -44,6 +44,7 @@ Invariants to preserve:
 
 ## CI / release
 
+- All three are path-filtered to code, packaging and CI files, so docs-only changes run nothing. Add new shipped paths to the `paths:` lists.
 - `build.yml` runs on PRs to non-main branches: swift build, swift test, ray lint.
 - `package.yml` runs on PRs to `main`: bundle, Homebrew formula install/test/audit from a local tap, and `ray build`.
 - `release.yml` runs on every push to `main`. It auto-bumps the patch version, creates a GitHub release, rewrites the `url`/`tag`/`revision` in `Formula/klangladder.rb` and commits it to `main` as the bot, then publishes to the Raycast Store. It also swaps the `../..` path dependency for the GitHub URL.

@@ -3,6 +3,16 @@ name: Release
 on:
   push:
     branches: [main]
+    # Only what ships. Formula edits go live via the tap on merge and need no release.
+    paths:
+      - "Sources/**"
+      - "Package.swift"
+      - "bundle.sh"
+      - "raycast/**"
+      - ".github/actions/**"
+      - ".github/workflows/build.yml"
+      - ".github/workflows/package.yml"
+      - ".github/workflows/release.yml"
   # Manual run to check the release path. Without "publish" it stops before publishing.
   workflow_dispatch:
     inputs:
