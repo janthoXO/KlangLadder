@@ -1,8 +1,8 @@
-# KlangLadder – Developer Guide
+# KlangLadder developer guide: Swift, SwiftUI and Core Audio
 
-This guide explains how KlangLadder is built and how it works. For the full product design and its reasoning, see [DESIGN.md](DESIGN.md). Section numbers such as (4.4) and goal numbers such as (G6) refer to that document.
+KlangLadder is a macOS menu bar app, written in Swift 5.10 with SwiftPM, SwiftUI and AppKit, that sets the default audio device through the Core Audio HAL based on a per-scope priority list. This guide explains how KlangLadder is built and how it works. For the full product design and its reasoning, see [DESIGN.md](DESIGN.md). Section numbers such as (4.4) and goal numbers such as (G6) refer to that document.
 
-## Build, run, test
+## How to build, run and test
 
 ```sh
 swift build                      # debug build
@@ -28,7 +28,7 @@ Test them with the bundled app.
 | `CFBundleURLTypes` | scheme `klangladder` |
 | `LSMinimumSystemVersion` | `14.0` |
 
-## Layout
+## Project layout
 
 ```
 Package.swift
@@ -237,7 +237,7 @@ The width is 320. The height follows the content: rows are exactly 28 points tal
 
 There is no committed snapshot test. To review layout changes, add a temporary test target that hosts `PopoverView` in an offscreen `NSWindow` and captures it with `CGWindowListCreateImage`; `cacheDisplay` leaves list and control text blank.
 
-## Tests
+## Unit tests
 
 `Tests/KlangLadderCoreTests/RulesTests.swift` uses swift-testing and covers:
 
@@ -283,11 +283,11 @@ The target uses only `RaycastTypeScriptPlugin`, not `RaycastSwiftPlugin`, becaus
 - The standalone-version compatibility check from 9.2 is skipped: the only command sent is `klangladder://open`, which every version supports.
 - Uninstalling the extension does not remove the installed app.
 
-## Homebrew formula
+## Homebrew formula and tap
 
 `Formula/klangladder.rb` makes this repository its own tap. `brew tap janthoXO/klangladder <repo URL>` is needed because the repository is not named `homebrew-klangladder`.
 
-- The formula is head-only for now. After the first tag (#3), add `url` with `tag:` and `revision:` so `brew install` and `brew upgrade` work without `--HEAD`.
+- Stable builds use the `url` with `tag:` and `revision:`, which the release job rewrites (see below). `head` builds `main`.
 - `install` runs `bundle.sh --disable-sandbox`. SwiftPM's own sandbox can't run inside Homebrew's build sandbox, so `bundle.sh` passes its arguments on to `swift build`.
 - The app lands in the keg, at `$(brew --prefix)/opt/klangladder/KlangLadder.app`.
 - `service` runs the app binary through a LaunchAgent (`sh.brew.klangladder`). If another copy is already running, the single instance rule makes the new one quit.
@@ -304,7 +304,7 @@ brew audit --strict --formula local/klangtest/klangladder
 brew test local/klangtest/klangladder
 ```
 
-## CI and releases
+## CI and release workflows (GitHub Actions)
 
 Three workflows in `.github/workflows` call each other: Release calls Package, and Package calls Build.
 
@@ -333,6 +333,6 @@ Without them the step logs a warning and skips. See #21 for what else the Store 
 
 See the GitHub issues and DESIGN.md sections 13–14. Main open items:
 
-- Raycast extension (#2) — the extension bundles and installs the app (9.2, S1); Raycast Store acceptance (S2) and switching the path dependency to a tagged release are still open
+- Raycast extension (#2) — the extension bundles and installs the app (9.2, S1); Raycast Store acceptance (S2) is still open
 - CLI mode for reads (#11)
 - URL write commands (#12)
